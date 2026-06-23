@@ -50,7 +50,7 @@ async function seedDatabase() {
 
     const endTime = Date.now();
     const duration = ((endTime - startTime) / 1000).toFixed(2);
-    
+
     // Get row count verification
     const countRes = await client.query('SELECT COUNT(*) FROM products;');
     console.log(`\nSuccess! Seeded ${countRes.rows[0].count} products in ${duration} seconds.`);
