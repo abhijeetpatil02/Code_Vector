@@ -7,6 +7,7 @@ dotenv.config();
 const connectionString = process.env.DATABASE_URL;
 
 // Determine SSL options based on the connection string
+
 const isLocalhost = connectionString?.includes('localhost') || connectionString?.includes('127.0.0.1');
 const sslConfig = isLocalhost ? false : { rejectUnauthorized: false };
 
