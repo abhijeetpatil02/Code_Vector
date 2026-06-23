@@ -1,0 +1,171 @@
+# Step-by-Step Assignment Guide: High-Performance Paginated Products Backend
+
+This document outlines the step-by-step plan to build the assignment, along with the core technical reasoning behind the architectural choices (such as cursor-based pagination and fast seeding).
+
+---
+
+## Step 1: Understand the Requirements & Core Challenges
+
+### 1. High Performance & Large Dataset
+We need to display ~200,000 products sorted by newest first (`created_at DESC`). Simple pagination using offsets becomes extremely slow at high offsets (e.g., page 5000) because the database has to scan and discard all preceding rows.
+
+### 2. Consistency Under Real-Time Updates
+*Requirement:* "If 50 new products are added/updated while someone is browsing, they must not see the same product twice or miss one."
+
+* **The Problem with Offset Pagination (`LIMIT 10 OFFSET 50`):**
+  If a user is on Page 1 (items 1–10) and 5 new products are added to the database, all existing items shift down by 5. When the user requests Page 2 (`OFFSET 10`), the database returns rows 11–20. Because of the shift, the last 5 items of Page 1 are now at positions 11–15, so the user sees those 5 items again. Conversely, if items are deleted, the user will miss items.
+* **The Solution: Keyset (Cursor-Based) Pagination:**
+  Instead of requesting a page number or offset, the client sends a `cursor` (the timestamp and unique ID of the last item seen on the previous page). The backend queries for items that are *older* than that cursor:
+  ```sql
+  WHERE (created_at, id) < (cursor_timestamp, cursor_id)
+  ORDER BY created_at DESC, id DESC
+  LIMIT 20
+  ```
+  Since this is anchored to a specific item, insertions or deletions above the cursor do not shift the remaining items relative to the cursor. It guarantees no duplicates and no missed items, and runs in $O(\log N)$ time using indexes.
+
+---
+
+## Step 2: Database Setup & Schema Design
+
+We will use **PostgreSQL** (Neon or Supabase are excellent free choices).
+
+### 1. Define the Schema
+Create a table for products:
+```sql
+CREATE TABLE products (
+    id SERIAL PRIMARY KEY, -- or UUID
+    name VARCHAR(255) NOT NULL,
+    category VARCHAR(100) NOT NULL,
+    price DECIMAL(10, 2) NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+### 2. Add Critical Indexes
+To make cursor pagination and category filtering fast, we need composite indexes that match our query patterns:
+* **For pagination with category filter:**
+  ```sql
+  CREATE INDEX idx_products_category_created_at_id 
+  ON products (category, created_at DESC, id DESC);
+  ```
+* **For pagination without category filter:**
+  ```sql
+  CREATE INDEX idx_products_created_at_id 
+  ON products (created_at DESC, id DESC);
+  ```
+These indexes ensure that finding the next page of products is a simple index scan, taking a fraction of a millisecond.
+
+---
+
+## Step 3: Fast Data Seeding (200,000 Products)
+
+*Tip:* "don't do a slow approach in a loop."
+If you insert 200,000 rows one-by-one using a standard loop with single `INSERT` queries, it will take several minutes or fail due to network/transaction overhead.
+
+### Option A: Pure SQL Seeding (Recommended - Takes 1-2 Seconds)
+You can generate and insert all 200,000 products directly inside PostgreSQL with a single query using `generate_series`. Run this in your database console:
+```sql
+INSERT INTO products (name, category, price, created_at, updated_at)
+SELECT 
+    'Product ' || i,
+    (ARRAY['Electronics', 'Books', 'Clothing', 'Home', 'Beauty'])[width_bucket(random(), 0, 1.0001, 5)],
+    ROUND((random() * 1000)::numeric, 2),
+    NOW() - (i * INTERVAL '1 minute'), -- ensuring unique and descending timestamps
+    NOW() - (i * INTERVAL '1 minute')
+FROM generate_series(1, 200000) AS i;
+```
+
+### Option B: Backend Script Seeding (Node.js or Python)
+If you want to write a seed script, generate the data in memory and write it in large batches (e.g., chunks of 5,000 or 10,000 rows) using a bulk-insert statement or `COPY` command.
+* **Python Example (using `psycopg` executemany):**
+  ```python
+  # Bulk insert list of tuples
+  cursor.executemany(
+      "INSERT INTO products (name, category, price, created_at, updated_at) VALUES (%s, %s, %s, %s, %s)",
+      batch_data
+  )
+  ```
+
+---
+
+## Step 4: Backend API Implementation
+
+Choose **Node.js (Express)** or **Python (FastAPI / Flask)**. Here is the step-by-step logic for the endpoint:
+
+### 1. Endpoint: `GET /api/products`
+Accept query parameters:
+* `limit`: Number of items to fetch (default: 20, max: 100).
+* `category`: Filter products by category (optional).
+* `cursor`: Base64 encoded string containing `created_at` and `id` of the last item of the previous page (optional).
+
+### 2. Decoding the Cursor
+If a `cursor` parameter is provided:
+1. Decode it from Base64.
+2. Parse the timestamp and the numeric ID. For example, if the cursor is `MjAyNi0wNi0yM1QwMzo1ODoyOFosMTk5OTUw`, it decodes to `2026-06-23T03:58:28Z,199950`.
+
+### 3. Executing the Query
+Construct the SQL query dynamically:
+```sql
+SELECT id, name, category, price, created_at, updated_at 
+FROM products
+WHERE 1=1
+-- If category filter is provided
+AND category = :category
+-- If cursor is provided (Key step for pagination consistency)
+AND (created_at, id) < (:cursor_created_at, :cursor_id)
+ORDER BY created_at DESC, id DESC
+LIMIT :limit;
+```
+*(Note: Using tuple comparison `(created_at, id) < (cursor_created_at, cursor_id)` handles cases where multiple products share the exact same `created_at` timestamp.)*
+
+### 4. Encoding the Next Cursor
+After retrieving the results:
+1. If the number of returned items equals `limit`, grab the `created_at` and `id` of the **last** item in the result array.
+2. Format them as a string (e.g., `created_at,id`) and encode it in Base64.
+3. Return the array of products and the `next_cursor` in the JSON response:
+   ```json
+   {
+     "products": [...],
+     "nextCursor": "bWFya2VyX2N1cnNvcg=="
+   }
+   ```
+If fewer items than `limit` are returned, set `nextCursor` to `null` (indicating the end of the data).
+
+---
+
+## Step 5: Frontend UI Setup (Optional / Bonus)
+
+To display your work, create a single-page interface:
+1. **Initial Load:** Fetch page 1 of products using `GET /api/products?limit=20`.
+2. **Category Selector:** A dropdown list of categories (e.g., Electronics, Books, etc.). When a category is selected:
+   - Clear the current product list.
+   - Reset the cursor to null.
+   - Fetch the first page matching that category.
+3. **Infinite Scroll or "Load More" Button:**
+   - Display a "Load More" button at the bottom of the list.
+   - If the backend returns a `nextCursor`, show the button.
+   - When clicked, fetch the next page: `GET /api/products?limit=20&cursor=nextCursorValue` (include category if selected) and append the new products to the existing list.
+
+---
+
+## Step 6: Deploying & Submission
+
+### 1. Database
+Create a free database on **Neon.tech** or **Supabase**. Get the connection string.
+
+### 2. Backend Deployment
+Deploy the backend on **Render.com** (as a Web Service):
+* Set up a GitHub repository containing your code.
+* Connect Render to your GitHub repo.
+* Add your database connection string as an environment variable (e.g., `DATABASE_URL`).
+* Deploy the service and verify that the API endpoints are public and responsive.
+
+### 3. Submission Details
+Email `siddharth@codevector.in` with:
+- The live public URL of your application.
+- The GitHub repository link (invite `invite_us` if it is private).
+- A short notes file answering:
+  1. What technologies you chose and why.
+  2. What you would improve with more time (e.g., database connection pooling, cursor optimization, error boundaries).
+  3. How you used AI (what it helped with and any errors it made).

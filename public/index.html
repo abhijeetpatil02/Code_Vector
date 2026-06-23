@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VectorCatalog - Fast Cursor Paginated Catalog</title>
+  <!-- Outfit Google Font -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <!-- Vanilla CSS Stylesheet -->
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- Background Blur Accents -->
+  <div class="bg-glow glow-1"></div>
+  <div class="bg-glow glow-2"></div>
+
+  <!-- App Wrapper -->
+  <div class="app-container">
+    
+    <!-- Top Header -->
+    <header class="app-header">
+      <div class="header-logo">
+        <div class="logo-icon"></div>
+        <h1>VectorCatalog</h1>
+      </div>
+      <div class="header-status">
+        <div class="status-indicator"></div>
+        <span>Connected to Neon/Supabase DB (200k Rows)</span>
+      </div>
+    </header>
+
+    <!-- Metrics HUD Dashboard -->
+    <section class="metrics-hud">
+      <div class="metric-card">
+        <span class="metric-label">DB Size</span>
+        <span class="metric-value">200,000+</span>
+        <span class="metric-detail">Products Generated</span>
+      </div>
+      <div class="metric-card">
+        <span class="metric-label">Query Time</span>
+        <span id="metric-query-time" class="metric-value">-- ms</span>
+        <span class="metric-detail">Direct from database</span>
+      </div>
+      <div class="metric-card">
+        <span class="metric-label">Loaded Items</span>
+        <span id="metric-loaded-count" class="metric-value">0</span>
+        <span class="metric-detail">In active viewport</span>
+      </div>
+      <div class="metric-card">
+        <span class="metric-label">Pagination Type</span>
+        <span class="metric-value code-font">Keyset/Cursor</span>
+        <span class="metric-detail">Consistent under writes</span>
+      </div>
+    </section>
+
+    <!-- Filters & Toolbar -->
+    <section class="toolbar">
+      <div class="filter-header">
+        <h2>Filter by Category</h2>
+        <button id="reset-filters-btn" class="secondary-btn">Clear Filters</button>
+      </div>
+      <div id="category-chips" class="category-chips-container">
+        <!-- Dynamic Category Chips go here -->
+        <div class="chip skeleton-chip"></div>
+        <div class="chip skeleton-chip"></div>
+        <div class="chip skeleton-chip"></div>
+        <div class="chip skeleton-chip"></div>
+      </div>
+    </section>
+
+    <!-- Product Catalog View -->
+    <main class="catalog-section">
+      <div class="catalog-header">
+        <h3>Products Feed <span class="catalog-subtitle">(newest first)</span></h3>
+      </div>
+      
+      <div id="products-grid" class="products-grid">
+        <!-- Dynamic Product Cards go here -->
+      </div>
+
+      <!-- Loading Skeletons -->
+      <div id="loading-skeletons" class="products-grid hidden">
+        <div class="product-card skeleton-card"></div>
+        <div class="product-card skeleton-card"></div>
+        <div class="product-card skeleton-card"></div>
+        <div class="product-card skeleton-card"></div>
+      </div>
+
+      <!-- Empty State -->
+      <div id="empty-state" class="empty-state hidden">
+        <p>No products found matching that filter.</p>
+      </div>
+
+      <!-- Scroll Trigger & Load More Button -->
+      <div class="pagination-trigger-zone">
+        <button id="load-more-btn" class="primary-btn hidden">Load More Products</button>
+        <div id="infinite-scroll-spinner" class="spinner hidden"></div>
+      </div>
+    </main>
+    
+    <!-- Footer -->
+    <footer class="app-footer">
+      <p>VectorCatalog Internship Assignment • Built with Node.js, Express, PostgreSQL, and Cursor-based Keyset Pagination.</p>
+    </footer>
+
+  </div>
+
+  <!-- Main JavaScript File -->
+  <script src="app.js"></script>
+</body>
+</html>
