@@ -14,7 +14,7 @@ export const pool = new Pool({
   connectionString,
   ssl: sslConfig,
   // Optimal pool limits for Render and serverless Postgres
-  max: 10, 
+  max: 10,
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 15000,
 });

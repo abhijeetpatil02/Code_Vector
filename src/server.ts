@@ -91,7 +91,7 @@ app.get('/api/products', async (req: Request, res: Response) => {
 
     // Return header with query time for diagnostics
     res.setHeader('X-Query-Time-Ms', queryTime.toString());
-    
+
     res.json({
       products: result.rows,
       nextCursor,
