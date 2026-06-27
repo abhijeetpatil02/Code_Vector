@@ -50,10 +50,10 @@ async function fetchCategories() {
     const res = await fetch('/api/categories');
     if (!res.ok) throw new Error('Failed to fetch categories');
     const categories = await res.json();
-    
+
     // Clear skeletons
     categoryChips.innerHTML = '';
-    
+
     // Render dynamic category chips
     categories.forEach(category => {
       const chip = document.createElement('div');
@@ -80,7 +80,7 @@ function handleCategoryClick(chipElement, category) {
     chipElement.classList.add('active');
     selectedCategory = category;
   }
-  
+
   // Re-fetch products starting from page 1
   fetchProducts(true);
 }
@@ -88,7 +88,7 @@ function handleCategoryClick(chipElement, category) {
 // Fetch products from backend
 async function fetchProducts(reset = false) {
   if (isLoading) return;
-  
+
   if (reset) {
     currentCursor = null;
     hasMore = true;
@@ -118,14 +118,14 @@ async function fetchProducts(reset = false) {
     const fetchDuration = Date.now() - startTime;
 
     if (!res.ok) throw new Error('Failed to fetch products');
-    
+
     const data = await res.json();
-    
+
     // Update metrics HUD
     // Use header-derived db query time if available, otherwise fallback to fetchDuration
     const dbQueryTime = res.headers.get('X-Query-Time-Ms') || data.queryTimeMs;
     metricQueryTime.textContent = `${dbQueryTime} ms`;
-    
+
     const products = data.products || [];
     currentCursor = data.nextCursor;
 
@@ -137,7 +137,7 @@ async function fetchProducts(reset = false) {
         const card = createProductCard(product);
         productsGrid.appendChild(card);
       });
-      
+
       loadedCount += products.length;
       metricLoadedCount.textContent = loadedCount.toLocaleString();
     }
@@ -158,11 +158,11 @@ async function fetchProducts(reset = false) {
   }
 }
 
-// Helper to create product card DOM elements
+// HElper to create product card DOM elements
 function createProductCard(product) {
   const card = document.createElement('div');
   card.className = 'product-card';
-  
+
   // Format dates cleanly
   const createdAtFormatted = new Date(product.created_at).toLocaleString([], {
     month: 'short',
@@ -201,7 +201,7 @@ function showLoadingState(show, isReset) {
   } else {
     loadingSkeletons.classList.add('hidden');
     spinner.classList.add('hidden');
-    
+
     if (hasMore) {
       loadMoreBtn.classList.remove('hidden');
     } else {
@@ -213,7 +213,7 @@ function showLoadingState(show, isReset) {
 // Setup IntersectionObserver for Infinite Scrolling
 function setupInfiniteScroll() {
   const triggerZone = document.querySelector('.pagination-trigger-zone');
-  
+
   const observer = new IntersectionObserver((entries) => {
     // If spinner or load-more is in view and we aren't loading, load more
     if (entries[0].isIntersecting && !isLoading && hasMore) {
@@ -223,7 +223,7 @@ function setupInfiniteScroll() {
     rootMargin: '200px', // Trigger load 200px before reaching the bottom
     threshold: 0.1
   });
-  
+
   observer.observe(triggerZone);
 }
 
