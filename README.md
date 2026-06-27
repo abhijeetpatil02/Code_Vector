@@ -3,7 +3,7 @@
 A backend project implementing high-performance keyset (cursor-based) pagination and category filtering over a dataset of 200,000 products, connected to a PostgreSQL database (Neon or Supabase).
 
 ---
-
+ <!-- updating readmin file  -->
 ## Features
 - **Keyset (Cursor-Based) Pagination**: Ensures consistent responses with $O(\log N)$ query times even deep in the pages, with zero duplication or missed items when concurrent writes/deletes happen.
 - **Fast Seeding**: Seeds 200,000 rows in under 2 seconds by generating rows directly in the database engine using `generate_series`.
