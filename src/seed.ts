@@ -20,7 +20,8 @@ async function seedDatabase() {
       );
     `);
 
-    // 2. Clear old data
+    // 2. Clear old data 
+
     console.log('Wiping old data...');
     await client.query('TRUNCATE TABLE products RESTART IDENTITY CASCADE;');
 
